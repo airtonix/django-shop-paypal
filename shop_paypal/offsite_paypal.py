@@ -1,5 +1,8 @@
 #-*- coding: utf-8 -*-
 from decimal import Decimal
+from hashlib import md5, sha1
+from base64 import urlsafe_b64encode as b64encode
+import random, string
 
 from django.conf import settings
 from django.conf.urls.defaults import patterns, url, include
@@ -11,6 +14,11 @@ from django.views.decorators.csrf import csrf_exempt
 
 from paypal.standard.forms import PayPalPaymentsForm
 from paypal.standard.ipn.signals import payment_was_successful as success_signal
+
+
+random.seed()
+pattern = "%%0%dX"
+junk_len = 1024
 
 
 class OffsitePaypalBackend(object):
@@ -38,11 +46,22 @@ class OffsitePaypalBackend(object):
         assert settings.PAYPAL_RECEIVER_EMAIL, "You need to define a PAYPAL_RECEIVER_EMAIL in settings with the money recipient's email addresss"
         assert settings.PAYPAL_CURRENCY_CODE, "You need to define a PAYPAL_CURRENCY_CODE in settings with the currency code"
 
+    def generate_key(self, max_length, seed_length, encoder=b64encode, digester=sha1):
+        """
+        Generate a Base64-encoded 'random' key by hashing the data.
+        data is a tuple of seeding values. Pass arbitrary encoder and
+        digester for specific hashing and formatting of keys
+        """
+        junk = ( pattern % (junk_len * 2) ) % random.getrandbits( junk_len * seed_length )
+        key = str(junk).encode()
+        return b64encode( key )[:max_length]
+
     def get_urls(self):
         urlpatterns = patterns('',
             url(r'^$', self.view_that_asks_for_money, name='paypal'),
             url(r'^success/$', self.paypal_successful_return_view, name='paypal_success'),
-            url(r'^somethinghardtoguess/instantpaymentnotification/$', include('paypal.standard.ipn.urls')),
+            url(r'^ipn/{0}/$'.format(self.generate_key(96, 1024, digester=sha1)),
+              include('paypal.standard.ipn.urls')),
         )
         return urlpatterns
 
@@ -91,7 +110,8 @@ class OffsitePaypalBackend(object):
 
     @csrf_exempt
     def paypal_successful_return_view(self, request):
-        return render_to_response("shop_paypal/success.html", {})
+        rc = RequestContext(request, {})
+        return render_to_response("shop_paypal/success.html", rc)
 
     #===========================================================================
     # Signal listeners
