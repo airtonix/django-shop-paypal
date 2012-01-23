@@ -13,19 +13,28 @@ from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 
 from paypal.standard.forms import PayPalPaymentsForm
-from paypal.standard.ipn.signals import payment_was_successful as success_signal
+from paypal.standard.ipn.signals import (
+  payment_was_successful as success_signal,
+  payment_was_flagged as flagged_signal,
+  subscription_cancel as subscription_cancel_signal,
+  subscription_eot as subscription_eot_signal,
+  subscription_modify as subscription_modify_signal,
+  subscription_signup as subscription_signup_signal,
+  recurring_create as recurring_create_signal,
+  recurring_payment as recurring_payment_signal,
+  recurring_cancel as recurring_cancel_signal,
+)
 
 import logging
 
 from logging import config
 logger = logging.getLogger('paypal')
 
-random.seed()
-pattern = "%%0%dX"
-junk_len = 1024
+from shop_paypal.lib.generate import generate_key
 
+IPN_RETURN_KEY = generate_key(96, 1024)
 
-class OffsitePaypalBackend(object):
+class OffsiteIPNPaypalBackend(object):
     '''
     Glue code to let django-SHOP talk to django-paypal's.
 
@@ -46,26 +55,23 @@ class OffsitePaypalBackend(object):
         self.shop = shop
         # Hook the payment was successful listener on the appropriate signal sent
         # by django-paypal (success_signal)
-        success_signal.connect(self.payment_was_successful, weak=False)
         assert settings.PAYPAL_RECEIVER_EMAIL, "You need to define a PAYPAL_RECEIVER_EMAIL in settings with the money recipient's email addresss"
         assert settings.PAYPAL_CURRENCY_CODE, "You need to define a PAYPAL_CURRENCY_CODE in settings with the currency code"
-
-    def generate_key(self, max_length, seed_length, encoder=b64encode, digester=sha1):
-        """
-        Generate a Base64-encoded 'random' key by hashing the data.
-        data is a tuple of seeding values. Pass arbitrary encoder and
-        digester for specific hashing and formatting of keys
-        """
-        junk = ( pattern % (junk_len * 2) ) % random.getrandbits( junk_len * seed_length )
-        key = str(junk).encode()
-        return b64encode( key )[:max_length]
+        success_signal.connect(self.payment_was_successful, weak=False)
+        flagged_signal.connect(self.payment_was_flagged, weak=False)
+        subscription_cancel_signal.connect(self.subscription_cancelled, weak=False)
+        subscription_eot_signal.connect(self.subscription_expired, weak=False)
+        subscription_modify_signal.connect(self.subscription_modified, weak=False)
+        subscription_signup_signal.connect(self.subscription_signup_success, weak=False)
+        recurring_create_signal.connect(self.recurring_payment_created, weak=False)
+        recurring_payment_signal.connect(self.recurring_payment_success, weak=False)
+        recurring_cancel_signal.connect(self.recurring_payment_cancelled, weak=False)
 
     def get_urls(self):
         urlpatterns = patterns('',
             url(r'^$', self.view_that_asks_for_money, name='paypal'),
             url(r'^success/$', self.paypal_successful_return_view, name='paypal_success'),
-            url(r'^ipn/{0}/$'.format(self.generate_key(96, 1024, digester=sha1)),
-              include('paypal.standard.ipn.urls')),
+            url(r'^ipn/{0}/$'.format(IPN_RETURN_KEY), include('paypal.standard.ipn.urls')),
         )
         return urlpatterns
 
@@ -76,6 +82,7 @@ class OffsitePaypalBackend(object):
         '''
         order = self.shop.get_order(request)
         url_scheme = 'https' if request.is_secure() else 'http'
+
         # get_current_site requires Django 1.3 - backward compatibility?
         url_domain = get_current_site(request).domain
         paypal_dict = {
@@ -120,6 +127,63 @@ class OffsitePaypalBackend(object):
     #===========================================================================
     # Signal listeners
     #===========================================================================
+    def payment_was_flagged(self, sender, **kwargs):
+        '''payment_was_flagged
+        '''
+        logger.info("Payment Flagged : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def recurring_payment_success(self, sender, **kwargs):
+        ''' '''
+        logger.info("Recurring Payment Success : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def recurring_payment_cancelled(self, sender, **kwargs):
+        ''' '''
+        logger.info("Recurring Payment Cancelled : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+
+    def subscription_cancelled(self, sender, **kwargs):
+        ''' '''
+        logger.info("Subscription Cancelled : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def subscription_expired(self, sender, **kwargs):
+        ''' '''
+        logger.info("Subscription Expired : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def subscription_modified(self, sender, **kwargs):
+        ''' '''
+        logger.info("Subscription Modified : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def subscription_signup_success(self, sender, **kwargs):
+        ''' '''
+        logger.info("Subscription Signup : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
 
     def payment_was_successful(self, sender, **kwargs):
         '''
