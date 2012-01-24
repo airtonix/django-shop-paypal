@@ -119,7 +119,7 @@ class OffsiteIPNPaypalBackend(object):
         context = {"form": form}
         rc = RequestContext(request, context)
         order = self.shop.get_order(request)
-        order_signals.payment_selection.send(order=order)
+        order_signals.payment_selection.send(sender=self, order=order)
         return render_to_response("shop_paypal/payment.html", rc)
 
     @csrf_exempt
