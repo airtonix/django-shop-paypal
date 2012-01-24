@@ -8,7 +8,7 @@ from django.conf import settings
 from django.conf.urls.defaults import patterns, url, include
 from django.contrib.sites.models import get_current_site
 from django.core.urlresolvers import reverse
-from django.shortcuts import render_to_response
+from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 
@@ -24,6 +24,8 @@ from paypal.standard.ipn.signals import (
   recurring_payment as recurring_payment_signal,
   recurring_cancel as recurring_cancel_signal,
 )
+
+from shop import order_signals
 
 import logging
 
@@ -117,12 +119,17 @@ class OffsiteIPNPaypalBackend(object):
         form = self.get_form(request)
         context = {"form": form}
         rc = RequestContext(request, context)
+        order = self.shop.get_order(request)
+        order_signals.payment_selection.send(sender=self, order=order)
         return render_to_response("shop_paypal/payment.html", rc)
 
     @csrf_exempt
     def paypal_successful_return_view(self, request):
+        order = self.shop.get_order(request)
+        order_signals.completed.send(sender=self, order=order)
         rc = RequestContext(request, {})
-        return render_to_response("shop_paypal/success.html", rc)
+#        return render_to_response("shop_paypal/success.html", rc)
+        return redirect(reverse("thank_you_for_your_order"))
 
     #===========================================================================
     # Signal listeners
