@@ -63,9 +63,9 @@ class OffsiteIPNPaypalBackend(object):
         subscription_eot_signal.connect(self.subscription_expired, weak=False)
         subscription_modify_signal.connect(self.subscription_modified, weak=False)
         subscription_signup_signal.connect(self.subscription_signup_success, weak=False)
-        recurring_create_signal.connect(self.recurring_payment_created, weak=False)
-        recurring_payment_signal.connect(self.recurring_payment_success, weak=False)
-        recurring_cancel_signal.connect(self.recurring_payment_cancelled, weak=False)
+        recurring_create_signal.connect(self.recurring_created, weak=False)
+        recurring_payment_signal.connect(self.recurring_payment, weak=False)
+        recurring_cancel_signal.connect(self.recurring_cancelled, weak=False)
 
     def get_urls(self):
         urlpatterns = patterns('',
@@ -127,24 +127,23 @@ class OffsiteIPNPaypalBackend(object):
     #===========================================================================
     # Signal listeners
     #===========================================================================
-    def payment_was_flagged(self, sender, **kwargs):
-        '''payment_was_flagged
-        '''
-        logger.info("Payment Flagged : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
-          transaction_id=transaction_id,
-          sender = sender,
-          order_id = order_id,
-          total = total))
-
-    def recurring_payment_success(self, sender, **kwargs):
+    def recurring_payment(self, sender, **kwargs):
         ''' '''
-        logger.info("Recurring Payment Success : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+        logger.info("Recurring Payment Made : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
           transaction_id=transaction_id,
           sender = sender,
           order_id = order_id,
           total = total))
 
-    def recurring_payment_cancelled(self, sender, **kwargs):
+    def recurring_created(self, sender, **kwargs):
+        ''' '''
+        logger.info("Recurring Payment Created : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def recurring_cancelled(self, sender, **kwargs):
         ''' '''
         logger.info("Recurring Payment Cancelled : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
           transaction_id=transaction_id,
@@ -180,6 +179,15 @@ class OffsiteIPNPaypalBackend(object):
     def subscription_signup_success(self, sender, **kwargs):
         ''' '''
         logger.info("Subscription Signup : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
+          transaction_id=transaction_id,
+          sender = sender,
+          order_id = order_id,
+          total = total))
+
+    def payment_was_flagged(self, sender, **kwargs):
+        '''payment_was_flagged
+        '''
+        logger.info("Payment Flagged : transaction_id: {transaction_id}, Sender: {sender}, OrderID {order_id}, Total: {total}".format(
           transaction_id=transaction_id,
           sender = sender,
           order_id = order_id,
