@@ -84,7 +84,6 @@ class OffsiteIPNPaypalBackend(object):
         '''
         order = self.shop.get_order(request)
         url_scheme = 'https' if request.is_secure() else 'http'
-
         # get_current_site requires Django 1.3 - backward compatibility?
         url_domain = get_current_site(request).domain
         paypal_dict = {
@@ -120,7 +119,7 @@ class OffsiteIPNPaypalBackend(object):
         context = {"form": form}
         rc = RequestContext(request, context)
         order = self.shop.get_order(request)
-        order_signals.payment_selection.send(sender=self, order=order)
+        order_signals.payment_selection.send(order=order)
         return render_to_response("shop_paypal/payment.html", rc)
 
     @csrf_exempt
@@ -129,7 +128,7 @@ class OffsiteIPNPaypalBackend(object):
         order_signals.completed.send(sender=self, order=order)
         rc = RequestContext(request, {})
 #        return render_to_response("shop_paypal/success.html", rc)
-        return redirect(reverse("thank_you_for_your_order"))
+#        return redirect(reverse("thank_you_for_your_order"))
 
     #===========================================================================
     # Signal listeners
