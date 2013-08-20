@@ -1,4 +1,5 @@
 #-*- coding: utf-8 -*-
+import logging
 from decimal import Decimal
 from hashlib import md5, sha1
 from base64 import urlsafe_b64encode as b64encode
@@ -27,14 +28,10 @@ from paypal.standard.ipn.signals import (
 
 from shop import order_signals
 
-import logging
+logger = logging.getLogger('paypal.ipn')
 
-from logging import config
-logger = logging.getLogger('paypal')
+IPN_RETURN_URLBASE = getattr(settings, "SHOP_PAYPAL_IPN_RETURN_URLBASE", "something-something-something-darkside")
 
-from shop_paypal.lib.generate import generate_key
-
-IPN_RETURN_KEY = generate_key(96, 1024)
 
 class OffsiteIPNPaypalBackend(object):
     '''
@@ -73,7 +70,7 @@ class OffsiteIPNPaypalBackend(object):
         urlpatterns = patterns('',
             url(r'^$', self.view_that_asks_for_money, name='paypal'),
             url(r'^success/$', self.paypal_successful_return_view, name='paypal_success'),
-            url(r'^ipn/{0}/$'.format(IPN_RETURN_KEY), include('paypal.standard.ipn.urls')),
+            url(r'^{0}/ipn/$'.format(IPN_RETURN_URLBASE), include('paypal.standard.ipn.urls')),
         )
         return urlpatterns
 
@@ -119,13 +116,13 @@ class OffsiteIPNPaypalBackend(object):
         context = {"form": form}
         rc = RequestContext(request, context)
         order = self.shop.get_order(request)
-        order_signals.confirmed.send(sender=self, order=order)
+        order_signals.confirmed.send(sender=self, order=order, request=request)
         return render_to_response("shop_paypal/payment.html", rc)
 
     @csrf_exempt
     def paypal_successful_return_view(self, request):
         order = self.shop.get_order(request)
-        order_signals.completed.send(sender=self, order=order)
+        order_signals.completed.send(sender=self, order=order, request=request)
         rc = RequestContext(request, {})
         return render_to_response("shop_paypal/success.html", rc)
 
