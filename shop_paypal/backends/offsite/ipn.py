@@ -56,15 +56,25 @@ class OffsiteIPNPaypalBackend(object):
         # by django-paypal (success_signal)
         assert settings.PAYPAL_RECEIVER_EMAIL, "You need to define a PAYPAL_RECEIVER_EMAIL in settings with the money recipient's email addresss"
         assert settings.PAYPAL_CURRENCY_CODE, "You need to define a PAYPAL_CURRENCY_CODE in settings with the currency code"
-        success_signal.connect(self.payment_was_successful, weak=False)
-        flagged_signal.connect(self.payment_was_flagged, weak=False)
-        subscription_cancel_signal.connect(self.subscription_cancelled, weak=False)
-        subscription_eot_signal.connect(self.subscription_expired, weak=False)
-        subscription_modify_signal.connect(self.subscription_modified, weak=False)
-        subscription_signup_signal.connect(self.subscription_signup_success, weak=False)
-        recurring_create_signal.connect(self.recurring_created, weak=False)
-        recurring_payment_signal.connect(self.recurring_payment, weak=False)
-        recurring_cancel_signal.connect(self.recurring_cancelled, weak=False)
+
+        success_signal.connect(self.payment_was_successful, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_payment-successful')
+        flagged_signal.connect(self.payment_was_flagged, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_payment-unsuccessful')
+        subscription_cancel_signal.connect(self.subscription_cancelled, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_subscription-cancelled')
+        subscription_eot_signal.connect(self.subscription_expired, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_subscription-expired')
+        subscription_modify_signal.connect(self.subscription_modified, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_subscription-modified')
+        subscription_signup_signal.connect(self.subscription_signup_success, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_subscription-signup')
+        recurring_create_signal.connect(self.recurring_created, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_recurring-created')
+        recurring_payment_signal.connect(self.recurring_payment, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_recurring-payment')
+        recurring_cancel_signal.connect(self.recurring_cancelled, weak=False,
+          dispatch_uid='django-shop-paypal_offsite_recurring-cancelled')
 
     def get_urls(self):
         urlpatterns = patterns('',
